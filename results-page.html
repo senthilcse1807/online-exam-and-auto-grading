@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Results — ExamFlow</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f4f0; --surface: #ffffff; --primary: #1a1a2e;
+    --accent: #4f46e5; --accent-light: #ede9fe;
+    --text: #1a1a2e; --muted: #6b7280; --border: #e5e7eb;
+    --danger: #dc2626; --danger-light: #fee2e2;
+    --success: #059669; --success-light: #d1fae5; --radius: 12px;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); min-height: 100vh; }
+  nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .logo { font-family: 'DM Serif Display', serif; font-size: 1.4rem; color: var(--primary); }
+  .logo span { color: var(--accent); }
+  main { max-width: 700px; margin: 2.5rem auto; padding: 0 1.5rem 3rem; }
+  .score-hero { background: var(--surface); border-radius: 20px; border: 1px solid var(--border); padding: 2.5rem; text-align: center; margin-bottom: 1.5rem; box-shadow: 0 4px 24px rgba(0,0,0,0.05); }
+  .score-circle { width: 120px; height: 120px; border-radius: 50%; border: 6px solid var(--accent); display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+  .score-circle.pass { border-color: var(--success); }
+  .score-circle.fail { border-color: var(--danger); }
+  .score-pct { font-size: 2rem; font-weight: 700; }
+  .score-pct.pass { color: var(--success); }
+  .score-pct.fail { color: var(--danger); }
+  .score-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .student-result-name { font-size: 1.2rem; font-weight: 600; margin-bottom: 0.25rem; }
+  .exam-result-title { font-size: 0.9rem; color: var(--muted); margin-bottom: 1.5rem; }
+  .result-stats { display: flex; justify-content: center; gap: 2.5rem; }
+  .stat .val { font-size: 1.5rem; font-weight: 600; }
+  .stat .lbl { font-size: 0.75rem; color: var(--muted); }
+  .pass-badge { display: inline-block; padding: 0.4rem 1.25rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 1rem; }
+  .pass-badge.pass { background: var(--success-light); color: var(--success); }
+  .pass-badge.fail { background: var(--danger-light); color: var(--danger); }
+  .section-title { font-size: 0.85rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
+  .q-review { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 1.25rem; margin-bottom: 0.75rem; }
+  .q-review-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
+  .q-review-text { font-size: 0.95rem; font-weight: 500; flex: 1; line-height: 1.5; }
+  .mark-badge { padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; flex-shrink: 0; margin-left: 0.75rem; }
+  .mark-badge.correct { background: var(--success-light); color: var(--success); }
+  .mark-badge.wrong { background: var(--danger-light); color: var(--danger); }
+  .answer-row { display: flex; gap: 0.5rem; align-items: flex-start; font-size: 0.83rem; margin-top: 0.35rem; }
+  .answer-label { color: var(--muted); min-width: 90px; flex-shrink: 0; }
+  .answer-val.green { color: var(--success); font-weight: 500; }
+  .answer-val.red { color: var(--danger); }
+  .bottom-actions { display: flex; gap: 1rem; margin-top: 2rem; justify-content: center; }
+  .btn-primary { background: var(--accent); color: #fff; border: none; border-radius: var(--radius); padding: 0.7rem 1.5rem; font-size: 0.9rem; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; text-decoration: none; transition: background 0.2s; display: inline-block; }
+  .btn-primary:hover { background: #4338ca; }
+  .btn-outline { background: transparent; color: var(--text); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 0.65rem 1.25rem; font-size: 0.9rem; text-decoration: none; display: inline-block; transition: border-color 0.15s; }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo">Exam<span>Flow</span></div>
+  <span style="font-size:0.85rem;color:var(--muted)">Results</span>
+</nav>
+<main id="resultsMain">
+  <div style="text-align:center;padding:4rem;color:var(--muted)">Loading results...</div>
+</main>
+<script>
+  const result = JSON.parse(sessionStorage.getItem('examflow_last_result') || 'null');
+  const exam = JSON.parse(sessionStorage.getItem('examflow_last_exam') || 'null');
+
+  if (!result || !exam) {
+    document.getElementById('resultsMain').innerHTML = `
+      <div style="text-align:center;padding:4rem">
+        <p style="color:var(--muted);margin-bottom:1rem">No result data found.</p>
+        <a href="index.html" class="btn-outline" style="text-decoration:none">Go Home</a>
+      </div>`;
+  } else {
+    renderResults();
+  }
+
+  function getAnswerLabel(q, ans) {
+    if (q.type === 'mcq') return q.options[parseInt(ans)] || '—';
+    if (q.type === 'truefalse') return ans === 'true' ? 'True' : 'False';
+    return ans || '(No answer)';
+  }
+
+  function getCorrectLabel(q) {
+    if (q.type === 'mcq') return q.options[q.correctIndex] || '—';
+    if (q.type === 'truefalse') return q.correctAnswer === 'true' ? 'True' : 'False';
+    return q.modelAnswer || '—';
+  }
+
+  function isCorrect(q, ans) {
+    if (ans === undefined || ans === null || ans === '') return false;
+    if (q.type === 'mcq') return parseInt(ans) === q.correctIndex;
+    if (q.type === 'truefalse') return ans === q.correctAnswer;
+    if (q.type === 'short') {
+      const s = String(ans).toLowerCase().trim();
+      const m = (q.modelAnswer || '').toLowerCase().trim();
+      return s.includes(m) || m.includes(s);
+    }
+    return false;
+  }
+
+  function renderResults() {
+    const pass = result.percent >= 50;
+    const cls = pass ? 'pass' : 'fail';
+    const reviewHtml = exam.questions.map((q, idx) => {
+      const ans = result.answers[q.id];
+      const correct = isCorrect(q, ans);
+      return `<div class="q-review">
+        <div class="q-review-header">
+          <div class="q-review-text">Q${idx+1}. ${q.text}</div>
+          <span class="mark-badge ${correct?'correct':'wrong'}">${correct?'✓ Correct':'✗ Wrong'}</span>
+        </div>
+        <div class="answer-row">
+          <span class="answer-label">Your answer:</span>
+          <span class="answer-val ${correct?'green':'red'}">${getAnswerLabel(q, ans)}</span>
+        </div>
+        ${!correct ? `<div class="answer-row">
+          <span class="answer-label">Correct answer:</span>
+          <span class="answer-val green">${getCorrectLabel(q)}</span>
+        </div>` : ''}
+      </div>`;
+    }).join('');
+
+    document.getElementById('resultsMain').innerHTML = `
+      <div class="score-hero">
+        <div class="score-circle ${cls}">
+          <span class="score-pct ${cls}">${result.percent}%</span>
+          <span class="score-label">Score</span>
+        </div>
+        <div class="student-result-name">${result.studentName}</div>
+        <div class="exam-result-title">${exam.title}${exam.teacherName ? ' — conducted by ' + exam.teacherName : ''}</div>
+        <div class="pass-badge ${cls}">${pass ? '🎉 Passed' : '❌ Not Passed'}</div>
+        <div class="result-stats">
+          <div class="stat"><div class="val">${result.score}</div><div class="lbl">Marks Scored</div></div>
+          <div class="stat"><div class="val">${result.total}</div><div class="lbl">Total Marks</div></div>
+          <div class="stat"><div class="val">${exam.questions.length}</div><div class="lbl">Questions</div></div>
+        </div>
+      </div>
+      <div class="section-title">Question Review</div>
+      ${reviewHtml}
+      <div class="bottom-actions">
+        <a href="index.html" class="btn-outline">← Home</a>
+        <a href="student-login.html" class="btn-primary">Take Another Exam</a>
+      </div>`;
+  }
+</script>
+</body>
+</html>

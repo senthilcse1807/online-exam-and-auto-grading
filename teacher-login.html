@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teacher Login — ExamFlow</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f4f0; --surface: #ffffff; --primary: #1a1a2e;
+    --accent: #4f46e5; --accent-light: #ede9fe;
+    --text: #1a1a2e; --muted: #6b7280; --border: #e5e7eb;
+    --danger: #dc2626; --danger-light: #fee2e2; --radius: 12px;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; }
+  .logo { font-family: 'DM Serif Display', serif; font-size: 2rem; color: var(--primary); margin-bottom: 0.25rem; }
+  .logo span { color: var(--accent); }
+  .tagline { font-size: 0.9rem; color: var(--muted); margin-bottom: 2.5rem; text-align: center; }
+  .card { background: var(--surface); border-radius: 20px; padding: 2.5rem; width: 100%; max-width: 420px; border: 1px solid var(--border); box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+  .card h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.4rem; }
+  .card .sub { font-size: 0.85rem; color: var(--muted); margin-bottom: 2rem; }
+  .form-group { margin-bottom: 1.1rem; }
+  .form-group label { display: block; font-size: 0.82rem; font-weight: 500; margin-bottom: 0.4rem; }
+  .form-group input { width: 100%; padding: 0.7rem 0.9rem; border: 1.5px solid var(--border); border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 0.95rem; color: var(--text); outline: none; transition: border-color 0.15s; }
+  .form-group input:focus { border-color: var(--accent); }
+  .btn-primary { width: 100%; background: var(--accent); color: #fff; border: none; border-radius: var(--radius); padding: 0.8rem; font-size: 0.95rem; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: background 0.2s; margin-top: 0.5rem; }
+  .btn-primary:hover { background: #4338ca; }
+  .btn-primary:disabled { background: #a5b4fc; cursor: not-allowed; }
+  .error-box { background: var(--danger-light); border: 1px solid #fca5a5; border-radius: 8px; padding: 0.7rem 1rem; color: var(--danger); font-size: 0.85rem; margin-bottom: 1rem; display: none; }
+  .back-link { margin-top: 1.5rem; text-align: center; }
+  .back-link a { font-size: 0.83rem; color: var(--muted); text-decoration: none; }
+  .back-link a:hover { color: var(--accent); }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 6px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .checking-box { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.9rem; display: none; }
+</style>
+</head>
+<body>
+  <div class="logo">Exam<span>Flow</span></div>
+  <p class="tagline">Log in with your Teacher ID</p>
+
+  <div class="checking-box" id="checkingBox"><span class="spinner" style="border-top-color:var(--accent);border-color:rgba(79,70,229,0.3)"></span>Checking session...</div>
+
+  <div class="card" id="loginCard" style="display:none">
+    <h2>Teacher Login</h2>
+    <p class="sub">Enter the Teacher ID and password from your registration</p>
+    <div class="error-box" id="errorBox"></div>
+    <div class="form-group">
+      <label>Teacher ID *</label>
+      <input type="text" id="teacherId" placeholder="e.g., sarath3257" style="font-family:monospace" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>Password *</label>
+      <input type="password" id="teacherPassword" placeholder="Enter your password" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" id="loginBtn" onclick="loginTeacher()">Log In →</button>
+    <div class="back-link"><a href="teacher-register.html">Don't have an account? Register</a></div>
+  </div>
+
+  <div class="back-link"><a href="index.html">← Back to home</a></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, query, where, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAy7mFTRAmQOgPw_p6g9LJr2fd7znBnw78",
+    authDomain: "examflow-a7d08.firebaseapp.com",
+    projectId: "examflow-a7d08",
+    storageBucket: "examflow-a7d08.firebasestorage.app",
+    messagingSenderId: "778356122895",
+    appId: "1:778356122895:web:8597ae3e059dda9b3d4a7a"
+  };
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  // If already logged in, skip straight to the dashboard
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      window.location.href = 'teacher-dashboard.html';
+    } else {
+      document.getElementById('checkingBox').style.display = 'none';
+      document.getElementById('loginCard').style.display = 'block';
+    }
+  });
+
+  window.loginTeacher = async function() {
+    const teacherId = document.getElementById('teacherId').value.trim();
+    const password = document.getElementById('teacherPassword').value;
+    const errorBox = document.getElementById('errorBox');
+    const btn = document.getElementById('loginBtn');
+
+    if (!teacherId || !password) {
+      errorBox.textContent = 'Please fill in both fields.';
+      errorBox.style.display = 'block'; return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Logging in...';
+    errorBox.style.display = 'none';
+
+    try {
+      const q = query(collection(db, 'teachers'), where('teacherId', '==', teacherId));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        errorBox.textContent = 'No account found with that Teacher ID.';
+        errorBox.style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = 'Log In →';
+        return;
+      }
+      const email = snap.docs[0].data().email;
+      await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged above will redirect once auth state updates,
+      // but redirect explicitly too for immediate feedback.
+      window.location.href = 'teacher-dashboard.html';
+    } catch (err) {
+      let msg = 'Incorrect Teacher ID or password.';
+      if (err.code === 'auth/too-many-requests') msg = 'Too many attempts. Please try again later.';
+      errorBox.textContent = msg;
+      errorBox.style.display = 'block';
+      btn.disabled = false;
+      btn.innerHTML = 'Log In →';
+    }
+  };
+
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') window.loginTeacher(); });
+</script>
+</body>
+</html>
