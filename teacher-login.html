@@ -196,11 +196,12 @@
 
   <div class="card" id="loginCard" style="display:none">
     <h2>Teacher Login</h2>
-    <p class="sub">Enter the Teacher ID and password from your registration</p>
+    <p class="sub">Enter your Teacher ID (or registered email) and password</p>
     <div class="error-box" id="errorBox"></div>
     <div class="form-group">
-      <label>Teacher ID *</label>
-      <input type="text" id="teacherId" placeholder="e.g., sarath3257" style="font-family:monospace" autocomplete="off">
+      <label>Teacher ID or Email *</label>
+      <input type="text" id="teacherId" placeholder="e.g., sarath3257 or you@example.com" style="font-family:monospace"
+        autocomplete="off">
     </div>
     <div class="form-group">
       <label>Password *</label>
@@ -240,12 +241,12 @@
     });
 
     window.loginTeacher = async function () {
-      const teacherId = document.getElementById('teacherId').value.trim();
+      const identifier = document.getElementById('teacherId').value.trim();
       const password = document.getElementById('teacherPassword').value;
       const errorBox = document.getElementById('errorBox');
       const btn = document.getElementById('loginBtn');
 
-      if (!teacherId || !password) {
+      if (!identifier || !password) {
         errorBox.textContent = 'Please fill in both fields.';
         errorBox.style.display = 'block'; return;
       }
@@ -254,23 +255,33 @@
       btn.innerHTML = '<span class="spinner"></span>Logging in...';
       errorBox.style.display = 'none';
 
+      const isEmail = identifier.includes('@');
+
       try {
-        const q = query(collection(db, 'teachers'), where('teacherId', '==', teacherId));
-        const snap = await getDocs(q);
-        if (snap.empty) {
-          errorBox.textContent = 'No account found with that Teacher ID.';
-          errorBox.style.display = 'block';
-          btn.disabled = false;
-          btn.innerHTML = 'Log In →';
-          return;
+        let email;
+        if (isEmail) {
+          // Entered an email directly — Firebase Auth can use it as-is.
+          email = identifier;
+        } else {
+          // Entered a Teacher ID — look up the matching email in Firestore.
+          const q = query(collection(db, 'teachers'), where('teacherId', '==', identifier));
+          const snap = await getDocs(q);
+          if (snap.empty) {
+            errorBox.textContent = 'No account found with that Teacher ID.';
+            errorBox.style.display = 'block';
+            btn.disabled = false;
+            btn.innerHTML = 'Log In →';
+            return;
+          }
+          email = snap.docs[0].data().email;
         }
-        const email = snap.docs[0].data().email;
+
         await signInWithEmailAndPassword(auth, email, password);
         // onAuthStateChanged above will redirect once auth state updates,
         // but redirect explicitly too for immediate feedback.
         window.location.href = 'teacher-dashboard.html';
       } catch (err) {
-        let msg = 'Incorrect Teacher ID or password.';
+        let msg = 'Incorrect Teacher ID/email or password.';
         if (err.code === 'auth/too-many-requests') msg = 'Too many attempts. Please try again later.';
         errorBox.textContent = msg;
         errorBox.style.display = 'block';
